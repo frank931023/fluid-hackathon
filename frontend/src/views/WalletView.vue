@@ -6,11 +6,27 @@ import Button from '@/components/ui/Button.vue'
 import Card from '@/components/ui/Card.vue'
 import { Wallet } from 'lucide-vue-next'
 
-const { address, connect, disconnect, assets } = useWallet()
+const { address, connect, switchAccount, disconnect, assets, isInWhitelist, addCurrentUserToWhitelist, isLoading } = useWallet()
 
 const totalBalance = computed(() => {
   return assets.value.reduce((sum, asset) => sum + asset.usdValue, 0)
 })
+
+const handleAddToWhitelist = async () => {
+  try {
+    await addCurrentUserToWhitelist()
+  } catch (error) {
+    alert('加入白名單失敗: ' + (error as Error).message)
+  }
+}
+
+const handleSwitchAccount = async () => {
+  try {
+    await switchAccount()
+  } catch (error) {
+    console.error('Failed to switch account:', error)
+  }
+}
 </script>
 
 <template>
@@ -40,19 +56,90 @@ const totalBalance = computed(() => {
           <p class="text-sm text-muted-foreground font-light">
             {{ address.slice(0, 6) }}...{{ address.slice(-4) }}
           </p>
-          <Button
-            @click="disconnect"
-            variant="outline"
-            size="sm"
-            class="mt-3 rounded-lg font-normal bg-transparent"
-          >
-            Disconnect Wallet
-          </Button>
+          <!-- 完整地址顯示（調試用） -->
+          <details class="mt-2 text-left max-w-2xl mx-auto">
+            <summary class="cursor-pointer text-xs text-blue-600 hover:text-blue-800">
+              🔍 點擊查看完整地址和診斷信息
+            </summary>
+            <div class="mt-3 p-4 bg-gray-50 rounded-lg text-left space-y-2">
+              <div>
+                <p class="text-xs font-semibold text-gray-700 mb-1">你的 MetaMask 地址：</p>
+                <p class="text-xs font-mono bg-white p-2 rounded border break-all">{{ address }}</p>
+              </div>
+              <div>
+                <p class="text-xs font-semibold text-gray-700 mb-1">預期的 Hardhat Account 0：</p>
+                <p class="text-xs font-mono bg-white p-2 rounded border break-all">0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266</p>
+              </div>
+              <div class="pt-2 border-t">
+                <p class="text-xs font-semibold mb-1" :class="address?.toLowerCase() === '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266' ? 'text-green-700' : 'text-red-700'">
+                  {{ address?.toLowerCase() === '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266' ? '✅ 地址匹配！' : '❌ 地址不匹配' }}
+                </p>
+                <p v-if="address?.toLowerCase() !== '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266'" class="text-xs text-red-600 mt-2">
+                  <strong>問題：</strong>你使用的不是 Hardhat Account 0。<br>
+                  <strong>解決：</strong>在 MetaMask 中匯入私鑰：<br>
+                  <code class="bg-yellow-100 px-1">0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80</code>
+                </p>
+              </div>
+              <div class="pt-2 border-t">
+                <p class="text-xs font-semibold text-gray-700 mb-1">白名單狀態：</p>
+                <p class="text-xs" :class="isInWhitelist ? 'text-green-700' : 'text-orange-700'">
+                  {{ isInWhitelist ? '✅ 已在白名單' : '⚠️ 未在白名單' }}
+                </p>
+              </div>
+            </div>
+          </details>
+          <div class="flex gap-2 mt-3 justify-center">
+            <Button
+              @click="handleSwitchAccount"
+              variant="outline"
+              size="sm"
+              class="rounded-lg font-normal bg-transparent"
+            >
+              🔄 切換帳戶
+            </Button>
+            <Button
+              @click="disconnect"
+              variant="outline"
+              size="sm"
+              class="rounded-lg font-normal bg-transparent"
+            >
+              Disconnect Wallet
+            </Button>
+          </div>
         </div>
+
+        <!-- 白名單狀態卡片 -->
+        <Card v-if="!isInWhitelist" class="p-6 rounded-lg shadow-sm border-border/50 bg-orange-50 border-orange-200 mb-6">
+          <div class="space-y-3">
+            <div class="flex items-start gap-3">
+              <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <span class="text-orange-600 text-xl">⚠️</span>
+              </div>
+              <div class="flex-1">
+                <h3 class="font-medium text-orange-900 mb-1">需要加入白名單</h3>
+                <p class="text-sm text-orange-700 font-light mb-3">
+                  為了使用借貸功能並持有 tTSLA 代幣，您需要先加入白名單。這是符合 ERC-3643 標準的 KYC/AML 驗證要求。
+                </p>
+                <Button
+                  @click="handleAddToWhitelist"
+                  :disabled="isLoading"
+                  class="bg-orange-600 hover:bg-orange-700 text-white"
+                >
+                  {{ isLoading ? '處理中...' : '加入白名單' }}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Card>
 
         <Card class="p-6 rounded-lg shadow-sm border-border/50">
           <div class="space-y-1">
-            <p class="text-sm text-muted-foreground font-light">Total Balance</p>
+            <div class="flex items-center justify-between">
+              <p class="text-sm text-muted-foreground font-light">Total Balance</p>
+              <span v-if="isInWhitelist" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                ✓ 已驗證
+              </span>
+            </div>
             <p class="text-4xl font-medium text-foreground">
               US${{ totalBalance.toLocaleString('en-US', {
                 minimumFractionDigits: 2,

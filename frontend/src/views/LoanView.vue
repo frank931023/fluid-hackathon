@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useWallet } from '@/composables/useWallet'
 import { useLoans } from '@/composables/useLoans'
+import { getRWAPrice, CONTRACT_ADDRESSES } from '@/services/contracts'
 import Navbar from '@/components/Navbar.vue'
 import Button from '@/components/ui/Button.vue'
 import Card from '@/components/ui/Card.vue'
@@ -36,22 +37,15 @@ const MERCHANT_NAMES = [
 const TOKENIZED_ASSETS = [
   {
     id: 'eth',
-    name: 'Ethereum',
-    symbol: 'ETH',
-    value: 5671.95,
-    contractAddress: '0x610178dA211FEF7D417bC0e6FeD39F05609AD788',
-  },
-  {
-    id: 'usdc',
-    name: 'USD Coin',
-    symbol: 'USDC',
-    value: 1.0,
-    contractAddress: '0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6',
+    name: 'Tokenized Tesla Stock',
+    symbol: 'tTSLA',
+    value: 200,
+    contractAddress: CONTRACT_ADDRESSES.Mock_RWA_Token,
   },
 ]
 
-const { address } = useWallet()
-const { addLoan } = useLoans()
+const { address, refreshAssets, assets } = useWallet()
+const { executeLockAndBorrow } = useLoans()
 
 const merchantAddress = ref('')
 const amount = ref('')
@@ -63,8 +57,8 @@ const qrData = ref<{ amount: string; merchant: string } | null>(null)
 
 const contractAddresses = {
   network: 'localhost',
-  fakeUSDC: '0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6',
-  lendingPool: '0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e',
+  fakeUSDC: CONTRACT_ADDRESSES.Mock_USDC,
+  lendingPool: CONTRACT_ADDRESSES.FluidPay_LendingPool,
 }
 
 const selectedAssetOptions = TOKENIZED_ASSETS.map(asset => ({
@@ -99,40 +93,66 @@ const handleBorrowAndPay = async () => {
     return
   }
 
-  const asset = TOKENIZED_ASSETS.find(a => a.id === selectedAsset.value)
-  if (!asset) return
+  // 目前只支持 tTSLA 作為抵押品
+  if (selectedAsset.value !== 'eth') {
+    addLog('Asset Error', 'error', 'Currently only tTSLA is supported as collateral')
+    return
+  }
 
   const randomMerchantName = MERCHANT_NAMES[Math.floor(Math.random() * MERCHANT_NAMES.length)]
 
   addLog(
     'Transaction Initiated',
     'warning',
-    `Borrowing ${amount.value} USDC with ${asset.name} (${asset.symbol}) as collateral`
+    `Borrowing ${amount.value} USDC with tTSLA as collateral`
   )
 
-  setTimeout(() => {
+  try {
+    // 獲取當前 tTSLA 價格
+    const rwaPrice = await getRWAPrice()
+    const rwaPriceNum = parseFloat(rwaPrice)
+
+    // 確保 amount 是字符串
+    const borrowAmountStr = String(amount.value)
+    const borrowAmountNum = parseFloat(borrowAmountStr)
+    
+    // 計算需要抵押的 RWA 數量
+    // LTV = 50%, 所以需要抵押價值 = 借款金額 * 2
+    const requiredCollateralValue = borrowAmountNum * 2 // 50% LTV
+    const rwaAmountToLock = (requiredCollateralValue / rwaPriceNum).toFixed(4)
+
+    // 檢查用戶是否有足夠的 tTSLA
+    const ttslaAsset = assets.value.find(a => a.symbol === 'tTSLA')
+    if (!ttslaAsset || ttslaAsset.balance < parseFloat(rwaAmountToLock)) {
+      addLog(
+        'Insufficient Balance',
+        'error',
+        `需要 ${rwaAmountToLock} tTSLA，但您只有 ${ttslaAsset?.balance || 0} tTSLA`
+      )
+      return
+    }
+
+    console.log('🔍 準備借貸參數:')
+    console.log('  RWA Amount:', rwaAmountToLock, 'Type:', typeof rwaAmountToLock)
+    console.log('  USDC Amount:', borrowAmountStr, 'Type:', typeof borrowAmountStr)
+
+    // 執行真實的鏈上交易
+    // 確保所有參數都是字符串
+    await executeLockAndBorrow(
+      String(rwaAmountToLock),
+      String(borrowAmountStr),
+      address.value,
+      randomMerchantName
+    )
+
     addLog(
       'Borrow & Pay Successful',
       'success',
       `Successfully borrowed ${amount.value} USDC and paid to ${randomMerchantName}`
     )
 
-    const collateralValue = asset.value
-    const collateralAmount = (Number.parseFloat(amount.value) / asset.value).toFixed(4)
-
-    addLoan({
-      merchantName: randomMerchantName || 'Unknown',
-      collateralAsset: asset.name,
-      collateralAmount: `${collateralAmount} ${asset.symbol}`,
-      collateralValue: collateralValue,
-      borrowedAmount: Number.parseFloat(amount.value),
-      borrowedCurrency: 'USDT',
-      currentValue: collateralValue,
-      status: 'active',
-      merchant: merchantAddress.value,
-      liquidationPrice: collateralValue * 0.8,
-      tokenId: asset.id,
-    })
+    // 刷新資產餘額
+    await refreshAssets()
 
     qrData.value = { amount: amount.value, merchant: merchantAddress.value }
     qrModalOpen.value = true
@@ -140,7 +160,14 @@ const handleBorrowAndPay = async () => {
     merchantAddress.value = ''
     amount.value = ''
     selectedAsset.value = ''
-  }, 2000)
+  } catch (error) {
+    addLog(
+      'Transaction Failed',
+      'error',
+      `Failed to borrow: ${(error as Error).message}`
+    )
+    console.error('Borrow and pay failed:', error)
+  }
 }
 
 const getStatusBadge = (status: TransactionLog['status']) => {

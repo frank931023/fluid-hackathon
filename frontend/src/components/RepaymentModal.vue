@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { Loan } from '@/composables/useLoans'
+import { useLoans } from '@/composables/useLoans'
+import { useWallet } from '@/composables/useWallet'
 import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
 import Label from '@/components/ui/Label.vue'
@@ -19,26 +21,61 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
+const { executeRepay } = useLoans()
+const { address, assets, refreshAssets } = useWallet()
+
 const repayAmount = ref(props.loan.borrowedAmount.toString())
 const isProcessing = ref(false)
 const isSuccess = ref(false)
+const errorMessage = ref('')
+
+// 獲取 USDC 餘額
+const usdcBalance = computed(() => {
+  const usdcAsset = assets.value.find(a => a.symbol === 'mUSDC')
+  return usdcAsset ? usdcAsset.balance : 0
+})
 
 const handleRepay = async () => {
+  if (!address.value) {
+    errorMessage.value = '請先連接錢包'
+    return
+  }
+
+  const repayAmountNum = parseFloat(repayAmount.value)
+  if (repayAmountNum <= 0) {
+    errorMessage.value = '還款金額必須大於 0'
+    return
+  }
+
+  if (repayAmountNum > usdcBalance.value) {
+    errorMessage.value = 'USDC 餘額不足'
+    return
+  }
+
   isProcessing.value = true
+  errorMessage.value = ''
 
-  // Simulate transaction
-  await new Promise((resolve) => setTimeout(resolve, 2000))
+  try {
+    await executeRepay(repayAmount.value, address.value)
+    
+    isProcessing.value = false
+    isSuccess.value = true
 
-  isProcessing.value = false
-  isSuccess.value = true
+    // 刷新資產餘額
+    await refreshAssets()
 
-  emit('repaySuccess', props.loan.id)
+    emit('repaySuccess', props.loan.id)
 
-  // Auto close after success
-  setTimeout(() => {
-    emit('close')
-    isSuccess.value = false
-  }, 2000)
+    // Auto close after success
+    setTimeout(() => {
+      emit('close')
+      isSuccess.value = false
+    }, 2000)
+  } catch (error) {
+    isProcessing.value = false
+    errorMessage.value = '還款失敗: ' + (error as Error).message
+    console.error('Repayment failed:', error)
+  }
 }
 
 const setMaxAmount = () => {
@@ -124,7 +161,13 @@ const setMaxAmount = () => {
                 </button>
               </div>
               <p class="text-xs text-muted-foreground font-light">
-                Available balance: US$1,000.00 USDC
+                Available balance: US${{ usdcBalance.toLocaleString('en-US', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                }) }} USDC
+              </p>
+              <p v-if="errorMessage" class="text-xs text-red-600 font-medium">
+                {{ errorMessage }}
               </p>
             </div>
 

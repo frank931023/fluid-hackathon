@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useWallet } from '@/composables/useWallet'
 import { useLoans, type Loan } from '@/composables/useLoans'
 import Navbar from '@/components/Navbar.vue'
@@ -12,7 +12,26 @@ import LiquidationMonitor from '@/components/LiquidationMonitor.vue'
 import { AlertCircle, CheckCircle, Filter, Search, ArrowUpDown, Activity } from 'lucide-vue-next'
 
 const { address } = useWallet()
-const { loans, completeLoan, liquidateLoan } = useLoans()
+const { loans, completeLoan, liquidateLoan, loadUserLoan } = useLoans()
+
+// 當用戶地址變化時，載入貸款數據
+watch(address, async (newAddress) => {
+  if (newAddress) {
+    await loadUserLoan(newAddress)
+  }
+}, { immediate: true })
+
+// 定期更新貸款數據（每 10 秒）
+onMounted(() => {
+  const interval = setInterval(async () => {
+    if (address.value) {
+      await loadUserLoan(address.value)
+    }
+  }, 10000)
+
+  // 清理
+  return () => clearInterval(interval)
+})
 
 const selectedLoan = ref<string | null>(null)
 const repayModalOpen = ref(false)
