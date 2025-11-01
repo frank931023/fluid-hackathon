@@ -483,6 +483,26 @@
         "type": "event"
       },
       {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          }
+        ],
+        "name": "WhitelistAdded",
+        "type": "event"
+      },
+      {
+        "inputs": [],
+        "name": "addMeToWhitelist",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
         "inputs": [
           {
             "internalType": "address",
@@ -560,6 +580,19 @@
           }
         ],
         "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address[]",
+            "name": "_users",
+            "type": "address[]"
+          }
+        ],
+        "name": "batchAddWhitelist",
+        "outputs": [],
+        "stateMutability": "nonpayable",
         "type": "function"
       },
       {
@@ -783,8 +816,8 @@
       }
     ],
     "FluidPay_LendingPool": [
-    {
-      "inputs": [
+      {
+        "inputs": [
           {
             "internalType": "address",
             "name": "_priceOracle",

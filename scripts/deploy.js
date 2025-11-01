@@ -1,4 +1,6 @@
 import pkg from "hardhat";
+import fs from "fs/promises";
+import path from "path";
 const { ethers } = pkg;
 
 // Helper function to parse numbers with correct decimals
@@ -24,7 +26,10 @@ async function main() {
   const Mock_RWA_Token = await ethers.getContractFactory("Mock_RWA_Token");
   const rwaToken = await Mock_RWA_Token.deploy();
   await rwaToken.waitForDeployment();
-  console.log("Mock_RWA_Token ($tTSLA) deployed to:", await rwaToken.getAddress());
+  console.log(
+    "Mock_RWA_Token ($tTSLA) deployed to:",
+    await rwaToken.getAddress()
+  );
 
   // 4. Deploy Mock_PriceOracle
   const Mock_PriceOracle = await ethers.getContractFactory("Mock_PriceOracle");
@@ -42,11 +47,11 @@ async function main() {
 
   const lendingPool = await FluidPay_LendingPool.deploy(
     oracleAddress,
-    rwaAddress, 
+    rwaAddress,
     usdcAddress
   );
 
-  const lendingPoolAddress = await lendingPool.getAddress()
+  const lendingPoolAddress = await lendingPool.getAddress();
 
   await lendingPool.waitForDeployment();
   console.log("FluidPay_LendingPool deployed to:", lendingPoolAddress);
@@ -59,37 +64,69 @@ async function main() {
 
   console.log("Seeding demo assets...");
 
-  // A. Set the price of $tTSLA in the Oracle
+  // A. Whitelist required addresses BEFORE mint/transfer (due to whitelist enforcement in token)
+  let tx = await rwaToken.addWhitelist(deployer.address);
+  await tx.wait();
+  console.log("Whitelisted deployer address");
+
+  tx = await rwaToken.addWhitelist(lendingPoolAddress);
+  await tx.wait();
+  console.log("Whitelisted LendingPool address");
+
+  // B. Set the price of $tTSLA in the Oracle
   // We'll set it to $170.00 (with 8 decimals)
-  let tx = await oracle.setPrice(rwaAddress, price(170));
+  tx = await oracle.setPrice(rwaAddress, price(170));
   await tx.wait();
   console.log("Set $tTSLA price to $170");
 
-  // B. Mint $tTSLA and USDC to the deployer's wallet
+  // C. Mint $tTSLA and USDC to the deployer's wallet
   tx = await usdcToken.mint(deployer.address, usdc(100000)); // 100,000 mUSDC
   await tx.wait();
   tx = await rwaToken.mint(deployer.address, rwa(100)); // 100 $tTSLA
   await tx.wait();
   console.log("Minted 100,000 mUSDC and 100 $tTSLA to deployer");
 
-  // C. Whitelist the deployer in the $tTSLA contract
-  tx = await rwaToken.addWhitelist(deployer.address);
-  await tx.wait();
-  console.log("Whitelisted deployer address");
-
-  // D. Fund the Lending Pool with 1,000,000 USDC
+  // D. Fund the Lending Pool with 1,000,000 USDC (demo uses 1,000 for speed)
   // First, approve the pool to spend our USDC
   tx = await usdcToken.approve(lendingPoolAddress, usdc(1000000));
   await tx.wait();
   // Then, call the fundPool function
   tx = await lendingPool.fundPool(usdc(1000));
   await tx.wait();
-  console.log("Funded Lending Pool with 1,000,000 mUSDC");
+  console.log("Funded Lending Pool with 1,000 mUSDC");
 
   console.log("\n--- ✅ Demo Environment Ready! ---");
   console.log("Deployer Wallet:", deployer.address);
-  console.log("mUSDC Balance:", (await usdcToken.balanceOf(deployer.address)).toString());
-  console.log("$tTSLA Balance:", (await rwaToken.balanceOf(deployer.address)).toString());
+  console.log(
+    "mUSDC Balance:",
+    (await usdcToken.balanceOf(deployer.address)).toString()
+  );
+  console.log(
+    "$tTSLA Balance:",
+    (await rwaToken.balanceOf(deployer.address)).toString()
+  );
+
+  // -------------------------------------------------------------
+  // Save deployments for frontend generator
+  // -------------------------------------------------------------
+  const deploymentsDir = path.resolve("deployments");
+  await fs.mkdir(deploymentsDir, { recursive: true });
+  const deploymentFile = path.join(deploymentsDir, "local-deployment.json");
+  const deploymentData = {
+    network: "localhost",
+    contracts: {
+      Mock_USDC: await usdcToken.getAddress(),
+      Mock_RWA_Token: await rwaToken.getAddress(),
+      Mock_PriceOracle: await oracle.getAddress(),
+      FluidPay_LendingPool: lendingPoolAddress,
+    },
+  };
+  await fs.writeFile(
+    deploymentFile,
+    JSON.stringify(deploymentData, null, 2),
+    "utf8"
+  );
+  console.log(`Saved deployments to ${deploymentFile}`);
 }
 
 main().catch((error) => {

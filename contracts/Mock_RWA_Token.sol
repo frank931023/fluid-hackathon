@@ -59,4 +59,22 @@ contract Mock_RWA_Token is ERC20 {
     function mint(address to, uint256 amount) public {
         _mint(to, amount);
     }
+
+    /**
+     * @dev 強制白名單限制：
+     * - 鑄造時（from == address(0)），接收者必須在白名單
+     * - 轉帳時（from != 0 && to != 0），雙方都必須在白名單
+     * - 銷毀時（to == address(0)），發送者必須在白名單
+     *
+     * 這符合 ERC-3643 的精神：只有通過 KYC/AML 的地址才能持有/轉移 RWA 代幣。
+     */
+    function _update(address from, address to, uint256 value) internal override {
+        if (from != address(0)) {
+            require(whitelist[from], "Sender not whitelisted");
+        }
+        if (to != address(0)) {
+            require(whitelist[to], "Recipient not whitelisted");
+        }
+        super._update(from, to, value);
+    }
 }

@@ -4,7 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "node": "hardhat node",
+    "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "gen:config": "hardhat run scripts/generate-contract-config-json.js --network localhost",
+    "seed:user": "hardhat run scripts/seed-user.js --network localhost",
+    "sync:frontend": "powershell -NoProfile -Command \"Copy-Item -Path contract-config.json -Destination frontend/src/ -Force\""
   },
   "keywords": [],
   "author": "",
