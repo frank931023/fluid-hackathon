@@ -1,3 +1,6 @@
+> 📦 **Latest Version:** Final release available on the `weihong` branch  
+> 本專案的最終版本已完成並更新於 `weihong` 分支，包含所有功能與修正。  
+> 建議以此分支為主要版本進行檢視與部署。
 # FluidPay - RWA 借貸協議
 
 [![整合狀態](https://img.shields.io/badge/整合狀態-✅_完成-brightgreen)]()
