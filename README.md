@@ -1,3 +1,7 @@
+> 📦 **Latest Version:** Final release available on the `weihong` branch  
+> 本專案的最終版本已完成並更新於 `weihong` 分支，包含所有功能與修正。  
+> 建議以此分支為主要版本進行檢視與部署。
+
 ## 開發者說明 — 如何啟動此專案、部署合約，並讓前端使用合約資料
 
 下面內容針對 Windows / PowerShell，說明如何從零到有啟動本地 Hardhat 節點、部署合約、產生前端專用的 `contract-config.js`，以及前端可以呼叫的主要函式與使用範例。
