@@ -56,38 +56,6 @@ const handleSwitchAccount = async () => {
           <p class="text-sm text-muted-foreground font-light">
             {{ address.slice(0, 6) }}...{{ address.slice(-4) }}
           </p>
-          <!-- 完整地址顯示（調試用） -->
-          <details class="mt-2 text-left max-w-2xl mx-auto">
-            <summary class="cursor-pointer text-xs text-blue-600 hover:text-blue-800">
-              🔍 點擊查看完整地址和診斷信息
-            </summary>
-            <div class="mt-3 p-4 bg-gray-50 rounded-lg text-left space-y-2">
-              <div>
-                <p class="text-xs font-semibold text-gray-700 mb-1">你的 MetaMask 地址：</p>
-                <p class="text-xs font-mono bg-white p-2 rounded border break-all">{{ address }}</p>
-              </div>
-              <div>
-                <p class="text-xs font-semibold text-gray-700 mb-1">預期的 Hardhat Account 0：</p>
-                <p class="text-xs font-mono bg-white p-2 rounded border break-all">0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266</p>
-              </div>
-              <div class="pt-2 border-t">
-                <p class="text-xs font-semibold mb-1" :class="address?.toLowerCase() === '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266' ? 'text-green-700' : 'text-red-700'">
-                  {{ address?.toLowerCase() === '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266' ? '✅ 地址匹配！' : '❌ 地址不匹配' }}
-                </p>
-                <p v-if="address?.toLowerCase() !== '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266'" class="text-xs text-red-600 mt-2">
-                  <strong>問題：</strong>你使用的不是 Hardhat Account 0。<br>
-                  <strong>解決：</strong>在 MetaMask 中匯入私鑰：<br>
-                  <code class="bg-yellow-100 px-1">0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80</code>
-                </p>
-              </div>
-              <div class="pt-2 border-t">
-                <p class="text-xs font-semibold text-gray-700 mb-1">白名單狀態：</p>
-                <p class="text-xs" :class="isInWhitelist ? 'text-green-700' : 'text-orange-700'">
-                  {{ isInWhitelist ? '✅ 已在白名單' : '⚠️ 未在白名單' }}
-                </p>
-              </div>
-            </div>
-          </details>
           <div class="flex gap-2 mt-3 justify-center">
             <Button
               @click="handleSwitchAccount"
@@ -95,7 +63,7 @@ const handleSwitchAccount = async () => {
               size="sm"
               class="rounded-lg font-normal bg-transparent"
             >
-              🔄 切換帳戶
+              Switch Account
             </Button>
             <Button
               @click="disconnect"
@@ -116,16 +84,16 @@ const handleSwitchAccount = async () => {
                 <span class="text-orange-600 text-xl">⚠️</span>
               </div>
               <div class="flex-1">
-                <h3 class="font-medium text-orange-900 mb-1">需要加入白名單</h3>
+                <h3 class="font-medium text-orange-900 mb-1">Whitelist Required</h3>
                 <p class="text-sm text-orange-700 font-light mb-3">
-                  為了使用借貸功能並持有 tTSLA 代幣，您需要先加入白名單。這是符合 ERC-3643 標準的 KYC/AML 驗證要求。
+                  To use lending features and hold tTSLA tokens, you need to join the whitelist first. This is a KYC/AML compliance requirement following ERC-3643 standard.
                 </p>
                 <Button
                   @click="handleAddToWhitelist"
                   :disabled="isLoading"
                   class="bg-orange-600 hover:bg-orange-700 text-white"
                 >
-                  {{ isLoading ? '處理中...' : '加入白名單' }}
+                  {{ isLoading ? 'Processing...' : 'Join Whitelist' }}
                 </Button>
               </div>
             </div>
@@ -137,7 +105,7 @@ const handleSwitchAccount = async () => {
             <div class="flex items-center justify-between">
               <p class="text-sm text-muted-foreground font-light">Total Balance</p>
               <span v-if="isInWhitelist" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                ✓ 已驗證
+                ✓ Verified
               </span>
             </div>
             <p class="text-4xl font-medium text-foreground">
@@ -203,6 +171,42 @@ const handleSwitchAccount = async () => {
               </div>
             </Card>
           </div>
+        </div>
+
+        <!-- 完整地址顯示和診斷資訊（調試用） -->
+        <div class="space-y-4 mt-8">
+          <details class="text-left">
+            <summary class="cursor-pointer text-xs text-blue-600 hover:text-blue-800 list-none">
+              click to see full address and diagnostics info
+            </summary>
+            <div class="mt-3 p-4 bg-gray-50 rounded-lg text-left space-y-2">
+            <div>
+              <p class="text-xs font-semibold text-gray-700 mb-1">Your MetaMask Address:</p>
+              <p class="text-xs font-mono bg-white p-2 rounded border break-all">{{ address }}</p>
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-gray-700 mb-1">Expected Hardhat Account 0:</p>
+              <p class="text-xs font-mono bg-white p-2 rounded border break-all">0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266</p>
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-gray-700 mb-1">Address Verification:</p>
+              <p class="text-xs font-semibold mb-1" :class="address?.toLowerCase() === '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266' ? 'text-green-700' : 'text-red-700'">
+                {{ address?.toLowerCase() === '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266' ? 'Address Matching' : 'Address Not Matching' }}
+              </p>
+              <p v-if="address?.toLowerCase() !== '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266'" class="text-xs text-red-600 mt-2">
+                <strong>Issue:</strong> You're not using Hardhat Account 0.<br>
+                <strong>Solution:</strong> Import this private key in MetaMask:<br>
+                <code class="bg-yellow-100 px-1">0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80</code>
+              </p>
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-gray-700 mb-1">Whitelist Status:</p>
+              <p class="text-xs" :class="isInWhitelist ? 'text-green-700' : 'text-orange-700'">
+                {{ isInWhitelist ? 'Whitelisted' : '⚠️ Not Whitelisted' }}
+              </p>
+            </div>
+          </div>
+          </details>
         </div>
       </div>
     </main>
